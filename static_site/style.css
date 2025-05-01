@@ -37,7 +37,7 @@ body {
   box-shadow: 0 0 40px rgba(200,0,200,0.8);
 }
 .features {
-  max-width: 800px;
+  max-width: 900px;
   margin: 4rem auto;
   padding: 0 1rem;
 }
@@ -81,12 +81,12 @@ body {
   margin-bottom: 1rem;
 }
 .why p {
-  max-width: 700px;
+  max-width: 900px;
   margin: 0 auto;
   color: #ddd;
 }
 .how ul {
-  max-width: 700px;
+  max-width: 900px;
   margin: 0 auto;
   list-style: inside disc;
   text-align: left;
