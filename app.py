@@ -15,19 +15,27 @@ if 'authenticated' not in st.session_state:
 
 # --- Landing Page ---
 def show_landing():
+    # Inject CSS
     css_path = os.path.join('static_site', 'style.css')
     if os.path.exists(css_path):
         with open(css_path, 'r', encoding='utf-8') as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    # Inject HTML body without static anchor
     html_path = os.path.join('static_site', 'index.html')
     if os.path.exists(html_path):
         with open(html_path, 'r', encoding='utf-8') as f:
             html = f.read()
         body = html.split('<body>')[1].split('</body>')[0]
-        st.markdown(body, unsafe_allow_html=True)
+        # Remove existing anchor tags to avoid confusion
+        import re
+        body_clean = re.sub(r'<a[^>]*>.*?</a>', '', body, flags=re.S)
+        st.markdown(body_clean, unsafe_allow_html=True)
+    # Streamlit button to proceed
+    st.markdown("<div style='text-align:center; margin-top:2rem;'>", unsafe_allow_html=True)
     if st.button('Rozpocznij teraz'):
         st.session_state.page = 'auth'
         st.experimental_rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # --- Authentication / Registration ---
 def auth_page():
