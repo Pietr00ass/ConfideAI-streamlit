@@ -8,6 +8,22 @@ body {
   background: #000;
   color: #fff;
   line-height: 1.6;
+  .cursor-glow {
+  pointer-events: none;           /* nie blokuje kliknięć */
+  position: fixed;                /* względem okna przeglądarki */
+  top: 0; left: 0;                /* ustawiane później przez JS */
+  width: 80px; height: 80px;      /* rozmiar poświaty */
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255,255,255,0.4) 0%,
+    rgba(255,255,255,0) 60%
+  );
+  transform: translate(-50%, -50%);   /* centrowanie pod kursorem */
+  transition: top 0.07s ease-out, left 0.07s ease-out;
+  /* jeśli chcesz mocniejszą poświatę, odkomentuj: */
+  /* filter: blur(8px); */
+  z-index: 9999;                 /* ponad wszystkimi elementami */
 }
 .hero {
   text-align: center;
