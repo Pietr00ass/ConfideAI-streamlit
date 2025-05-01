@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.enc
+*.key
+*.hmac
+*.log
+uploads/*
+!uploads/.gitkeep
+ner_model/*
+!ner_model/.gitkeep
