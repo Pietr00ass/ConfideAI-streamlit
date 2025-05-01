@@ -6,3 +6,7 @@ numpy
 pytesseract
 Pillow
 pdfplumber
+authlib
+itsdangerous
+pyotp
+google-auth-oauthlib
