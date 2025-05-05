@@ -12,7 +12,7 @@ if 'user_email' not in st.session_state:
     st.session_state.user_email = ''
 
 # Handle OAuth2 callback
-params = st.experimental_get_query_params()
+params = st.query_params  # replaced experimental_get_query_params
 if 'code' in params and 'state' in params:
     code = params['code'][0]
     state = params['state'][0]
