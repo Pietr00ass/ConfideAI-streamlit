@@ -12,31 +12,39 @@ if 'user_email' not in st.session_state:
     st.session_state.user_email = ''
 
 # Handle OAuth2 callback
-params = st.query_params  # replaced experimental_get_query_params
+params = st.query_params
 if 'code' in params and 'state' in params:
     code = params['code'][0]
     state = params['state'][0]
     user_info = fetch_user_info(code, state)
     st.session_state.authenticated = True
     st.session_state.user_email = user_info.get('email', '')
-    st.experimental_set_query_params()  # clear callback params
+    # Clear query params to avoid re-trigger
+    st.experimental_set_query_params()
 
 # --- LANDING PAGE ---
 def show_landing():
-    # Inject CSS for hero
-    st.markdown("""
-    <style>
-      .hero {text-align:center; padding:100px 0; background:#000; color:#fff;}
-      .hero h1 {font-size:4rem; margin-bottom:0.5rem;}
-      .hero p {font-size:1.25rem; color:#ccc; margin-bottom:1.5rem;}
-      .stButton>button {background:linear-gradient(90deg,#8000ff,#c800c8); color:#fff; padding:1rem 2rem; border:none; border-radius:50px; font-size:1.125rem;}
-    </style>
-    <div class="hero">
-      <h1>ConfideAI</h1>
-      <p>Bezpieczne szyfrowanie i udostępnianie plików w jednym miejscu – szybko i prywatnie.</p>
-    </div>
-    """, unsafe_allow_html=True)
-    if st.button("Rozpocznij teraz"):
+    # Inject external CSS
+    css_path = os.path.join('static_site', 'style.css')
+    if os.path.exists(css_path):
+        with open(css_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+
+    # Render body from static HTML
+    html_path = os.path.join('static_site', 'index.html')
+    if os.path.exists(html_path):
+        with open(html_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        # Extract <body> content
+        try:
+            body = html_content.split('<body>')[1].split('</body>')[0]
+            st.markdown(body, unsafe_allow_html=True)
+        except IndexError:
+            st.error("Error loading landing page HTML body.")
+
+    # Fallback button
+    if st.button("Rozpocznij teraz", key="landing_btn"):
         st.session_state.page = 'auth'
 
 # --- AUTH PAGE ---
@@ -44,7 +52,13 @@ def auth_page():
     st.title("🔐 Zaloguj się przez Google")
     auth_url, state = get_authorization_url()
     st.session_state.state = state
-    st.markdown(f"[🔴 Kontynuuj z Google]({auth_url})")
+    # Styled link button
+    st.markdown(
+        f"<a href='{auth_url}' style='text-decoration:none;'>"
+        f"<button style='padding:0.75rem 1.5rem; font-size:1rem; background:#4285F4; color:#fff; border:none; border-radius:4px;'>"
+        f"Kontynuuj z Google</button></a>",
+        unsafe_allow_html=True
+    )
 
 # --- MAIN APP ---
 def main_app():
@@ -54,7 +68,7 @@ def main_app():
     if action == 'Encrypt':
         uploaded = st.file_uploader('Upload file to encrypt')
         delete_orig = st.checkbox('Delete original after encrypting')
-        if uploaded and st.button('Encrypt'):
+        if uploaded and st.button('Encrypt', key='encrypt_btn'):
             path = os.path.join('uploads', uploaded.name)
             with open(path, 'wb') as f:
                 f.write(uploaded.getbuffer())
@@ -66,7 +80,7 @@ def main_app():
         enc_file = st.file_uploader('Upload encrypted file (.enc)', type=['enc'])
         key_file = st.file_uploader('Upload key file (.key)', type=['key'])
         delete_enc = st.checkbox('Delete .enc after decrypting')
-        if enc_file and key_file and st.button('Decrypt'):
+        if enc_file and key_file and st.button('Decrypt', key='decrypt_btn'):
             enc_path = os.path.join('uploads', enc_file.name)
             key_path = os.path.join('uploads', key_file.name)
             with open(enc_path, 'wb') as f:
