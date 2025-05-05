@@ -1,125 +1,55 @@
 import streamlit as st
 import os
 from functions import encrypt_file, decrypt_file
-from auth import (
-    send_verification_email,
-    confirm_email_token,
-    get_google_auth_url,
-    fetch_google_user,
-    generate_totp_secret,
-    get_totp_qr_uri,
-    verify_totp
-)
+from auth import get_authorization_url, fetch_user_info
 
-# --- Initialization ---
+# --- INITIALIZATION ---
 if 'page' not in st.session_state:
     st.session_state.page = 'landing'
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
+if 'user_email' not in st.session_state:
+    st.session_state.user_email = ''
 
-# If user clicked the static landing “Rozpocznij teraz” link with ?start=1
+# Handle OAuth2 callback
 params = st.experimental_get_query_params()
-if 'start' in params:
-    st.session_state.page = 'auth'
+if 'code' in params and 'state' in params:
+    code = params['code'][0]
+    state = params['state'][0]
+    user_info = fetch_user_info(code, state)
+    st.session_state.authenticated = True
+    st.session_state.user_email = user_info.get('email', '')
+    st.experimental_set_query_params()  # clear callback params
 
-# --- Landing Page ---
+# --- LANDING PAGE ---
 def show_landing():
-    css_path = os.path.join('static_site', 'style.css')
-    if os.path.exists(css_path):
-        with open(css_path, 'r', encoding='utf-8') as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    html_path = os.path.join('static_site', 'index.html')
-    if os.path.exists(html_path):
-        with open(html_path, 'r', encoding='utf-8') as f:
-            html = f.read()
-        body = html.split('<body>')[1].split('</body>')[0]
-        st.markdown(body, unsafe_allow_html=True)
-    # Note: the "Rozpocznij teraz" in index.html should link to "?start=1"
-    # No extra Streamlit button needed here.
-
-# --- Authentication / Registration Panel ---
-def auth_page():
-    # Inline CSS
+    # Inject CSS for hero
     st.markdown("""
     <style>
-      .auth-card {max-width:400px;margin:4rem auto;background:#fff;padding:2rem;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.2);color:#000;}
-      .auth-card input {width:100%;padding:0.5rem;margin-bottom:1rem;border:1px solid #ccc;border-radius:4px;}
-      .auth-btn {width:100%;padding:0.75rem;border:none;border-radius:4px;font-size:1rem;cursor:pointer;margin-bottom:0.5rem;background:#007bff;color:#fff;}
-      .google-btn {width:100%;padding:0.75rem;border:1px solid #ccc;border-radius:4px;font-size:1rem;cursor:pointer;background:#fff;color:#333;display:flex;align-items:center;justify-content:center;margin-bottom:0.5rem;}
-      .google-btn img {height:20px;margin-right:8px;}
-      .separator {text-align:center;margin:1rem 0;position:relative;color:#666;}
-      .separator:before, .separator:after {content:"";position:absolute;top:50%;width:45%;height:1px;background:#ccc;}
-      .separator:before {left:0;}
-      .separator:after {right:0;}
-      .separator span {background:#fff;padding:0 0.5rem;position:relative;}
-      a {color:#007bff;text-decoration:none;}
-      a:hover {text-decoration:underline;}
+      .hero {text-align:center; padding:100px 0; background:#000; color:#fff;}
+      .hero h1 {font-size:4rem; margin-bottom:0.5rem;}
+      .hero p {font-size:1.25rem; color:#ccc; margin-bottom:1.5rem;}
+      .stButton>button {background:linear-gradient(90deg,#8000ff,#c800c8); color:#fff; padding:1rem 2rem; border:none; border-radius:50px; font-size:1.125rem;}
     </style>
-    <div class='auth-card'>
-      <h2 style='text-align:center;'>Witaj</h2>
-      <p style='text-align:center;color:#666;'>Zaloguj się do ConfideAI, aby kontynuować</p>
+    <div class="hero">
+      <h1>ConfideAI</h1>
+      <p>Bezpieczne szyfrowanie i udostępnianie plików w jednym miejscu – szybko i prywatnie.</p>
+    </div>
     """, unsafe_allow_html=True)
+    if st.button("Rozpocznij teraz"):
+        st.session_state.page = 'auth'
 
-    mode = st.selectbox('Wybierz metodę:', [
-        'Zaloguj przez Google',
-        '2FA Google Authenticator',
-        'Rejestracja e-mail'
-    ])
+# --- AUTH PAGE ---
+def auth_page():
+    st.title("🔐 Zaloguj się przez Google")
+    auth_url, state = get_authorization_url()
+    st.session_state.state = state
+    st.markdown(f"[🔴 Kontynuuj z Google]({auth_url})")
 
-    if mode == 'Zaloguj przez Google':
-        auth_url = get_google_auth_url()
-        st.markdown(f"<a class='auth-btn' href='{auth_url}'>Kontynuuj z Google</a>", unsafe_allow_html=True)
-        params = st.experimental_get_query_params()
-        if 'code' in params:
-            user_info = fetch_google_user(params)
-            st.success(f"Witaj, {user_info.get('email')}!")
-            st.session_state.authenticated = True
-            st.session_state.page = 'app'
-            st.experimental_rerun()
-
-    elif mode == '2FA Google Authenticator':
-        email = st.text_input('Adres e-mail (dla TOTP)')
-        if st.button('Wygeneruj QR kod'):
-            secret = generate_totp_secret()
-            uri = get_totp_qr_uri(secret, email)
-            st.image(f"https://api.qrserver.com/v1/create-qr-code/?data={uri}&size=200x200")
-            st.session_state.totp_secret = secret
-        token = st.text_input('Kod z Authenticator', max_chars=6)
-        if st.button('Zweryfikuj 2FA'):
-            if verify_totp(token, st.session_state.get('totp_secret', '')):
-                st.success('2FA zweryfikowane!')
-                st.session_state.authenticated = True
-                st.session_state.page = 'app'
-                st.experimental_rerun()
-            else:
-                st.error('Niepoprawny kod.')
-
-    else:  # Rejestracja e-mail
-        email = st.text_input('Adres e-mail')
-        if st.button('Zarejestruj e-mail'):
-            send_verification_email(email)
-            st.info('Sprawdź swoją skrzynkę i kliknij link weryfikacyjny.')
-        params = st.experimental_get_query_params()
-        if 'confirm_email' in params:
-            user = confirm_email_token(params['confirm_email'][0])
-            if user:
-                st.success('E-mail potwierdzony! Przejdź do logowania.')
-                st.session_state.page = 'login'
-                st.experimental_rerun()
-            else:
-                st.error('Link wygasł lub jest niepoprawny.')
-
-    st.markdown("<div class='separator'><span>LUB</span></div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# --- Email Login Fallback ---
-def login_page():
-    st.title('🔑 Logowanie e-mail')
-    st.info('Najpierw potwierdź e-mail w rejestracji.')
-
-# --- Main Application ---
+# --- MAIN APP ---
 def main_app():
-    st.title('File Encryption & Decryption')
+    st.header(f"Witaj, {st.session_state.user_email}")
+    st.title("File Encryption & Decryption")
     action = st.selectbox('Action', ['Encrypt', 'Decrypt'])
     if action == 'Encrypt':
         uploaded = st.file_uploader('Upload file to encrypt')
@@ -152,12 +82,10 @@ def main_app():
                 else:
                     st.error('Decryption failed.')
 
-# --- Routing ---
-if st.session_state.page == 'landing':
-    show_landing()
+# --- ROUTING ---
+if st.session_state.authenticated:
+    main_app()
 elif st.session_state.page == 'auth':
     auth_page()
-elif st.session_state.authenticated:
-    main_app()
 else:
-    login_page()
+    show_landing()
