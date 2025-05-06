@@ -1,8 +1,7 @@
 import os
 from authlib.integrations.requests_client import OAuth2Session
 
-# Load Google OAuth2 credentials from env
-CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+# Load Google OAuth2 credentials from env\CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("APP_URL")  # e.g. https://confideai-streamlit-production.up.railway.app
 
@@ -42,10 +41,12 @@ def fetch_user_info(code: str, state: str) -> dict:
         redirect_uri=REDIRECT_URI,
         state=state
     )
-    # Exchange code for token
+    # Exchange code for token; include client_secret explicitly
     token = oauth.fetch_token(
         TOKEN_ENDPOINT,
-        code=code
+        grant_type='authorization_code',
+        code=code,
+        client_secret=CLIENT_SECRET
     )
     # Get user info
     resp = oauth.get(USERINFO_ENDPOINT)
